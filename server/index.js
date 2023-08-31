@@ -73,7 +73,7 @@ app.post("/my_info/", (req, res) => {
 
 app.post("/dashboard/", (req, res) => {
     res.setHeader('mysql', { "Content-Type": "text/plain" });
-    const sql = "select UserDetails.EmpID, UserDetails.First_Name, UserDetails.DOB, UserDetails.Last_Name,  DATEDIFF(CURDATE(), DOJ)/365 as Experience, UserDetails.Designation, UserDetails.DOJ, UserDetails.Address, UserDetails.Zipcode, UserCredential.MobileNo, UserDetails.Is_Active, UserDetails.Profile from UserDetails inner join UserCredential on UserDetails.EmpID = UserCredential.EmpID where Is_Active = 1";
+    const sql = "select UserDetails.EmpID, UserDetails.First_Name, UserDetails.DOB, UserDetails.Age, UserDetails.Last_Name,  DATEDIFF(CURDATE(), DOJ)/365 as Experience, UserDetails.Designation, UserDetails.DOJ, UserDetails.Address, UserDetails.Zipcode, UserCredential.MobileNo, UserDetails.Is_Active, UserDetails.Profile from UserDetails inner join UserCredential on UserDetails.EmpID = UserCredential.EmpID where Is_Active = 1";
     db.query(sql, (err, result) => {
         if (err) {
             console.log(err);
@@ -104,10 +104,31 @@ app.post("/show-all-attendance/", (req, res) => {
     res.setHeader('mysql', { "Content-Type": "text/plain" });
     const empid = req.body.empid;
     const empname = req.body.empname;
+    const mode = req.body.mode;
+    const status = req.body.status;
     const datefrom = req.body.datefrom;
     const dateto = req.body.dateto;
-    const sql = "select * from attendance_reports where EmpID = ? and EmpName = ? and date between ? and ?";
-    db.query(sql, [empid, empname, datefrom, dateto], (err, result) => {
+    let sql = "select * from attendance_reports where EmpID = ? and EmpName = ?";
+    let sqlQuery;
+    let values;
+    if (mode) {
+        if (status) {
+            sqlQuery = sql + " and Status = ? and mode = ? and date between ? and ?"
+            values = [empid, empname, status, mode, datefrom, dateto];
+        } else {
+            sqlQuery = sql + " and mode = ? and date between ? and ?";
+            values = [empid, empname, mode, datefrom, dateto];
+        }
+    } else {
+        if (status) {
+            sqlQuery = sql + " and Status = ? and date between ? and ?"
+            values = [empid, empname, status, datefrom, dateto];
+        } else {
+            sqlQuery = sql + " and date between ? and ?";
+            values = [empid, empname, datefrom, dateto];
+        }
+    }
+    db.query(sqlQuery, values, (err, result) => {
         if (err) {
             console.log(err);
         } else {
@@ -227,6 +248,20 @@ app.post("/search/", (req, res) => {
         }
     });
 })
+
+app.post("/delete_record/", (req, res) => {
+    const empid = req.body.empid;
+    const empname = req.body.empname;
+    const date = req.body.date;
+    const sql = "delete from attendance_reports where EmpID= ? and EmpName = ? and Date = ?"
+    db.query(sql, [empid, empname, date], (err, results) => {
+        if (err) {
+            console.log(err);
+        } else {
+            res.send(JSON.stringify(results));
+        }
+    });
+});
 
 app.post("/forget_psw/", (req, res) => {
     res.setHeader('mysql', { "Content-Type": "text/plain" });
