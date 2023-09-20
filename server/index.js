@@ -1,9 +1,12 @@
 const express = require('express');
+const moment = require('moment');
 const jwt = require('jsonwebtoken');
 const db = require('./dbconnection');
 const cors = require('cors');
 const multer = require('multer');
 const path = require('path');
+
+// Set Up Middleware
 const app = express();
 const PORT = 3000;
 app.use(cors());
@@ -39,7 +42,7 @@ app.get('*', (req, res) => {
 });
 
 app.post("/login/", (req, res) => {
-    res.setHeader('mysql', { "Content-Type": "text/plain" });
+    res.setHeader('mysql', { "Content-Type": 'application/json' });
     username = req.body.username;
     const password = req.body.password;
     const sql = "select UserDetails.EmpID, UserCredential.SecretID, UserDetails.First_Name, UserDetails.Last_Name, UserCredential.UserName, UserCredential.Password, UserDetails.Designation, UserDetails.DOJ, DATEDIFF(CURDATE(), DOJ)/365 as Experience, UserDetails.Address, UserDetails.Zipcode, UserDetails.Is_Active, UserCredential.MobileNo from UserDetails inner join UserCredential on UserDetails.EmpID = UserCredential.EmpID where Is_Active = 1 and username =? and password =?";
@@ -59,7 +62,7 @@ app.post("/login/", (req, res) => {
 });
 
 app.post("/my_info/", (req, res) => {
-    res.setHeader('mysql', { "Content-Type": "text/plain" });
+    res.setHeader('mysql', { "Content-Type": 'application/json' });
     const sql = "select UserDetails.EmpID, UserCredential.UserName, UserCredential.Password, UserCredential.SecretID, UserDetails.First_Name, UserDetails.Last_Name, UserDetails.DOB, UserDetails.Age, DATEDIFF(CURDATE(), DOJ)/365 as Experience, UserDetails.Designation, UserDetails.DOJ, UserDetails.Address, UserDetails.Zipcode, UserCredential.MobileNo, UserDetails.Is_Active, UserDetails.Profile from UserDetails inner join UserCredential on UserDetails.EmpID = UserCredential.EmpID where Is_Active = 1 and username = ?";
     res.setHeader("Content-Type", "text/plain");
     db.query(sql, [username], (err, result) => {
@@ -72,7 +75,7 @@ app.post("/my_info/", (req, res) => {
 })
 
 app.post("/dashboard/", (req, res) => {
-    res.setHeader('mysql', { "Content-Type": "text/plain" });
+    res.setHeader('mysql', { "Content-Type": 'application/json' });
     const sql = "select UserDetails.EmpID, UserDetails.First_Name, UserDetails.DOB, UserDetails.Age, UserDetails.Last_Name,  DATEDIFF(CURDATE(), DOJ)/365 as Experience, UserDetails.Designation, UserDetails.DOJ, UserDetails.Address, UserDetails.Zipcode, UserCredential.MobileNo, UserDetails.Is_Active, UserDetails.Profile from UserDetails inner join UserCredential on UserDetails.EmpID = UserCredential.EmpID where Is_Active = 1";
     db.query(sql, (err, result) => {
         if (err) {
@@ -83,25 +86,25 @@ app.post("/dashboard/", (req, res) => {
     });
 });
 
-app.post("/show_attendance/", (req, res) => {
-    res.setHeader('mysql', { "Content-Type": "text/plain" });
-    const empid = req.body.empid;
-    const empname = req.body.empname;
-    const mode = req.body.mode;
-    const datefrom = req.body.datefrom;
-    const dateto = req.body.dateto;
-    const sql = "select * from attendance_reports where EmpID = ? and EmpName = ? and mode = ? and date between ? and ?";
-    db.query(sql, [empid, empname, mode, datefrom, dateto], (err, result) => {
-        if (err) {
-            console.log(err);
-        } else {
-            res.send(JSON.stringify(result));
-        }
-    });
-});
+// app.post("/show_attendance/", (req, res) => {
+//     res.setHeader('mysql', { "Content-Type": "text/plain" });
+//     const empid = req.body.empid;
+//     const empname = req.body.empname;
+//     const mode = req.body.mode;
+//     const datefrom = req.body.datefrom;
+//     const dateto = req.body.dateto;
+//     const sql = "select * from attendance_reports where EmpID = ? and EmpName = ? and mode = ? and date between ? and ?";
+//     db.query(sql, [empid, empname, mode, datefrom, dateto], (err, result) => {
+//         if (err) {
+//             console.log(err);
+//         } else {
+//             res.send(JSON.stringify(result));
+//         }
+//     });
+// });
 
 app.post("/show-all-attendance/", (req, res) => {
-    res.setHeader('mysql', { "Content-Type": "text/plain" });
+    res.setHeader('mysql', { "Content-Type": 'application/json' });
     const empid = req.body.empid;
     const empname = req.body.empname;
     const mode = req.body.mode;
@@ -137,8 +140,32 @@ app.post("/show-all-attendance/", (req, res) => {
     });
 });
 
+app.post("/team-attendance/", (req, res) => {
+    res.setHeader('mysql', { "Content-Type": 'application/json' });
+    const date = req.body.date;
+    const dateTo = req.body.dateTo;
+    const designation = req.body.designation;
+    let sql = "select * from attendance_reports LEFT JOIN userdetails ON attendance_reports.empid = userdetails.empid WHERE userdetails.Is_Active=1 AND date BETWEEN ? AND ?";
+    let sqlQuery;
+    let values;
+    if (designation) {
+        sqlQuery = sql + " AND attendance_reports.Designation = ?"
+        values = [date, dateTo, designation];
+    } else {
+        sqlQuery = sql;
+        values = [date, dateTo];
+    }
+    db.query(sqlQuery, values, (err, result) => {
+        if (err) {
+            console.log(err);
+        } else {
+            res.send(JSON.stringify(result));
+        }
+    });
+})
+
 app.post("/show_attendance_details/", (req, res) => {
-    res.setHeader('mysql', { "Content-Type": "text/plain" });
+    res.setHeader('mysql', { "Content-Type": 'application/json' });
     const empid = req.body.empid;
     const date = req.body.date;
     const dateTo = req.body.dateTo;
@@ -162,9 +189,9 @@ app.post("/show_attendance_details/", (req, res) => {
 });
 
 app.post("/attendance_status/", (req, res) => {
-    res.setHeader('mysql', { "Content-Type": "text/plain" });
+    res.setHeader('mysql', { "Content-Type": 'application/json' });
     const status = "Pending";
-    const sql = "select * from attendance_reports where Status = ?";
+    const sql = "select * from attendance_reports LEFT JOIN userdetails ON attendance_reports.empid = userdetails.empid WHERE userdetails.Is_Active=1 AND Status = ?";
     db.query(sql, [status], (err, result) => {
         if (err) {
             console.log(err);
@@ -182,7 +209,7 @@ app.post("/attendance_status_update/", (req, res) => {
     const attendance_status = req.body.attendance_status;
     let sql;
     let values;
-    if (attendance_status == "Present" || attendance_status == "Not-approve") {
+    if (attendance_status == "Present") {
         sql = "update attendance_reports set Status = ?, attendance_status = ? where EmpID = ? and Date = ?";
         values = [status_update, attendance_status, empid, date]
     } else {
@@ -199,7 +226,7 @@ app.post("/attendance_status_update/", (req, res) => {
 });
 
 app.post("/attendance/", (req, res) => {
-    res.setHeader('mysql', { "Content-Type": "text/plain" });
+    res.setHeader('mysql', { "Content-Type": 'application/json' });
     const empid = req.body.empid;
     const empname = req.body.empname;
     const designation = req.body.designation;
@@ -222,7 +249,9 @@ app.post("/attendance/", (req, res) => {
             for (let i = 0; i <= dayDifference; i++) {
                 const currentDate = new Date(dateFrom);
                 currentDate.setDate(currentDate.getDate() + i);
-                values.push([empid, empname, designation, currentDate.toISOString().split('T')[0], Status, mode]);
+                if (moment(currentDate).day() !== 0) {
+                    values.push([empid, empname, designation, currentDate.toISOString().split('T')[0], Status, mode]);
+                }
             }
 
             db.query(insertQuery, [values], (err, result) => {
@@ -237,7 +266,7 @@ app.post("/attendance/", (req, res) => {
 });
 
 app.post("/search/", (req, res) => {
-    res.setHeader('mysql', { "Content-Type": "text/plain" });
+    res.setHeader('mysql', { "Content-Type": 'application/json' });
     const username = req.body.username;
     const sql = "select UserDetails.EmpID, UserCredential.SecretID, UserDetails.First_Name, UserDetails.Last_Name, UserCredential.UserName, UserCredential.Password, UserDetails.Designation, UserDetails.DOJ, DATEDIFF(CURDATE(), DOJ)/365 as Experience, UserDetails.Address, UserDetails.Zipcode, UserDetails.Is_Active, UserCredential.MobileNo from UserDetails inner join UserCredential on UserDetails.EmpID = UserCredential.EmpID where Is_Active = 1 and UserName = ?"
     db.query(sql, username, (err, results) => {
@@ -264,13 +293,14 @@ app.post("/delete_record/", (req, res) => {
 });
 
 app.post("/forget_psw/", (req, res) => {
-    res.setHeader('mysql', { "Content-Type": "text/plain" });
+    res.setHeader('mysql', { "Content-Type": 'application/json' });
     const email = req.body.email;
     const username = req.body.username;
     var mailOptions = {};
     var otp = Math.random();
     otp = otp * 1000000;
     otp = parseInt(otp);
+    const otpExpirationTime = 600;
     const transporter = nodemailer.createTransport({
         service: 'gmail',
         auth: {
@@ -328,7 +358,8 @@ app.post("/forget_psw/", (req, res) => {
 
                 res.send({
                     OtpToken,
-                    results
+                    results,
+                    otpExpirationTime
                 });
             });
         });
@@ -336,7 +367,7 @@ app.post("/forget_psw/", (req, res) => {
 });
 
 app.post("/forget_psw/otp_generate/", (req, res) => {
-    res.setHeader('mysql', { "Content-Type": "text/plain" });
+    res.setHeader('mysql', { "Content-Type": 'application/json' });
     const otp = req.body.otp;
     const sql = "select * from usercredential where OTP = ?";
     db.query(sql, [otp], (err, result) => {
@@ -349,7 +380,7 @@ app.post("/forget_psw/otp_generate/", (req, res) => {
 });
 
 app.post("/forget_psw/change_psw/", (req, res) => {
-    res.setHeader('mysql', { "Content-Type": "text/plain" });
+    res.setHeader('mysql', { "Content-Type": 'application/json' });
     const newpassword = req.body.newpassword;
     const sql = "update usercredential set Password = ? where empid = ?";
     db.query(sql, [newpassword, user.EmpID], (err, result) => {
@@ -363,7 +394,7 @@ app.post("/forget_psw/change_psw/", (req, res) => {
 });
 
 app.post("/change_newPassword/", (req, res) => {
-    res.setHeader('mysql', { "Content-Type": "text/plain" });
+    res.setHeader('mysql', { "Content-Type": 'application/json' });
     const newpassword = req.body.newpassword;
     const currentpassword = req.body.currentpassword;
     const sql = "update usercredential set Password = ? where UserName =? and Password = ?";
@@ -377,7 +408,7 @@ app.post("/change_newPassword/", (req, res) => {
 });
 
 app.post("/add&show_employee/", (req, res) => {
-    res.setHeader('mysql', { "Content-Type": "text/plain" });
+    res.setHeader('mysql', { "Content-Type": 'application/json' });
     const empid = req.body.empid;
     const firstname = req.body.firstname;
     const lastname = req.body.lastname;
@@ -451,7 +482,7 @@ app.get("/:universalURL", (req, res) => {
 });
 
 app.post("/remove_employee/", (req, res) => {
-    res.setHeader('mysql', { "Content-Type": "text/plain" });
+    res.setHeader('mysql', { "Content-Type": 'application/json' });
     const removeid = req.body.removeid;
     const active = 0;
     const date = req.body.date;
@@ -468,8 +499,8 @@ app.post("/remove_employee/", (req, res) => {
 });
 
 app.post("/attendance_list/", (req, res) => {
-    res.setHeader('mysql', { "Content-Type": "text/plain" });
-    const sql = "select * from attendance_reports;"
+    res.setHeader('mysql', { "Content-Type": 'application/json' });
+    const sql = "select UserDetails.EmpID, attendance_reports.EmpName, attendance_reports.Designation, attendance_reports.Date, attendance_reports.Status, attendance_reports.mode, attendance_reports.attendance_status  from UserDetails inner join attendance_reports on UserDetails.EmpID = attendance_reports.EmpID where Is_Active = 1";
     db.query(sql, (err, result) => {
         if (err) {
             console.log(err);
@@ -480,7 +511,7 @@ app.post("/attendance_list/", (req, res) => {
 })
 
 app.post("/absentees_list/", (req, res) => {
-    res.setHeader('mysql', { "Content-Type": "text/plain" });
+    res.setHeader('mysql', { "Content-Type": 'application/json' });
     const date = req.body.date;
     const attendance_status = req.body.attendance_status;
     let sql;
@@ -508,8 +539,8 @@ app.post("/absentees_list/", (req, res) => {
 });
 
 app.post("/birth_date/", (req, res) => {
-    res.setHeader('mysql', { "Content-Type": "text/plain" });
-    const sql = " SELECT * FROM  userdetails WHERE DATE_FORMAT( CONCAT(YEAR(CURDATE()),'-',DATE_FORMAT(DOB, '%m-%d') ), '%Y-%m-%d') BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 1 MONTH) order by DAYOFYEAR(DOB) < DAYOFYEAR(CURDATE()),DAYOFYEAR(DOB); ";
+    res.setHeader('mysql', { "Content-Type": 'application/json' });
+    const sql = "SELECT * FROM  userdetails WHERE Is_Active=1 AND DATE_FORMAT( CONCAT(YEAR(CURDATE()),'-',DATE_FORMAT(DOB, '%m-%d') ), '%Y-%m-%d') BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 1 MONTH) order by DAYOFYEAR(DOB) < DAYOFYEAR(CURDATE()),DAYOFYEAR(DOB)";
     db.query(sql, (err, result) => {
         if (err) {
             console.log(err);
@@ -520,7 +551,7 @@ app.post("/birth_date/", (req, res) => {
 });
 
 app.post("/edit_employee/", (req, res) => {
-    res.setHeader('mysql', { "Content-Type": "text/plain" });
+    res.setHeader('mysql', { "Content-Type": 'application/json' });
     const empid = req.body.empid;
     const firstname = req.body.firstname;
     const lastname = req.body.lastname;
@@ -555,7 +586,7 @@ app.post("/edit_employee/", (req, res) => {
                     + "<h3 style='font-weight:bold;'> NOW YOUR DATE OF BIRTH IS : </h3>" + "<h4 style='font-weight:bold; color:red;'>" + DOB + "</h4>"
                     + "<h3 style='font-weight:bold;'> NOW YOUR ADDRESS AND ZIPCODE IS : </h3>" + "<h4 style='font-weight:bold; color:red;'>" + address + "-" + zipcode + "</h4>"
                     + "<h3 style='font-weight:bold;'> NOW YOUR MOBILE NUMBER IS : </h3>" + "<h4 style='font-weight:bold; color:red;'>" + mobileno + "</h4>"
-                    + "<h3 style='font-weight:bold;'> More details please visit :</h3>" + "<h4 style='font-weight:bold; color:red;'>" + "http://localhost:3000/" + "</h4>"// html body
+                    + "<h3 style='font-weight:bold;'> More details please visit :</h3>" + "<h4 style='font-weight:bold; color:red;'>" + "https://aravind7521.github.io/workForceHub/" + "</h4>"// html body
             };
 
             transporter.sendMail(mailOptions, function (error, result) {
@@ -583,7 +614,7 @@ app.post("/uploading/", upload.single('image_file_2'), (req, res) => {
 })
 
 app.post("/find/", (req, res) => {
-    res.setHeader('mysql', { "Content-Type": "text/plain" });
+    res.setHeader('mysql', { "Content-Type": 'application/json' });
     const sql = "select UserDetails.EmpID, UserDetails.First_Name, UserDetails.Last_Name,  DATEDIFF(CURDATE(), DOJ)/365 as Experience, UserDetails.Designation, UserDetails.DOJ, UserDetails.Address, UserDetails.Zipcode, UserCredential.MobileNo, UserDetails.Is_Active, UserDetails.Profile from UserDetails inner join UserCredential on UserDetails.EmpID = UserCredential.EmpID";
     db.query(sql, (err, result) => {
         if (err) {
@@ -593,13 +624,5 @@ app.post("/find/", (req, res) => {
         }
     });
 });
-
-// app.get("/getMysqlStatus", (req, res) => {
-//     database.ping((err) => {
-//         if (err) return res.status(500).send("MySQL Server is Down");
-
-//         res.send("MySQL Server is Active");
-//     })
-// });
 
 app.listen(PORT, console.log(`Server started on port ${PORT}`));
